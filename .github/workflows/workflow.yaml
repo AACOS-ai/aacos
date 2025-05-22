@@ -1,0 +1,9 @@
+main:
+  steps:
+    - init:
+        assign:
+          - message: "Hello from AACOS-ai!"
+    - log:
+        call: sys.log
+        args:
+          text: ${message}
