@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# === CONFIGURATION ===
+PROJECT_ID="aacos-ai"        # שנה במידת הצורך
+REGION="us-central1"
+SERVICE_ACCOUNT_NAME="aacos-workflow"
+SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+WORKFLOW_NAME="aacos-core-trigger"
+WORKFLOW_FILE="workflow.yaml"
+KEY_FILE="key.json"
+
+# === Step 1: Set project ===
+echo "▶ Setting GCP project: $PROJECT_ID"
+gcloud config set project $PROJECT_ID
+
+# === Step 2: Create Service Account ===
+echo "▶ Creating Service Account: $SERVICE_ACCOUNT_NAME"
+gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
+  --description="Workflow runner for AACOS-ai" \
+  --display-name="AACOS Workflow"
+
+# === Step 3: Assign IAM Role ===
+echo "▶ Assigning 'roles/workflows.invoker'"
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/workflows.invoker"
+
+# === Step 4: Generate key file ===
+echo "▶ Generating key file: $KEY_FILE"
+gcloud iam service-accounts keys create $KEY_FILE \
+  --iam-account $SERVICE_ACCOUNT_EMAIL
+
+# === Step 5: Create Workflow YAML file ===
+echo "▶ Creating Workflow YAML file: $WORKFLOW_FILE"
+
+cat > $WORKFLOW_FILE <<EOF
+main:
+  steps:
+    - init:
+        assign:
+          - message: "Hello from AACOS-ai!"
+    - log:
+        call: sys.log
+        args:
+          text: \${message}
+EOF
+
+# === Step 6: Deploy Workflow ===
+echo "▶ Deploying workflow: $WORKFLOW_NAME"
+gcloud workflows deploy $WORKFLOW_NAME \
+  --source=$WORKFLOW_FILE \
+  --location=$REGION
+
+echo "✅ All done."
+echo "➡ Workflow '$WORKFLOW_NAME' is now deployed in region '$REGION'"
+echo "📄 Key file saved: $KEY_FILE (use it as GitHub Secret)"
